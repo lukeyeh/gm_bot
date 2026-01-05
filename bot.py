@@ -19,8 +19,6 @@ load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
 GM_CHANNEL_ID = os.getenv('GM_CHANNEL_ID')
 TIMEZONE = os.getenv('TIMEZONE', 'UTC')
-MORNING_START_HOUR = int(os.getenv('MORNING_START_HOUR', '5'))  # 5 AM default
-MORNING_END_HOUR = int(os.getenv('MORNING_END_HOUR', '12'))    # 12 PM default
 DATA_DIR = os.getenv('DATA_DIR', '.')  # Data directory for persistent storage
 
 # Initialize bot
@@ -34,16 +32,6 @@ bot = commands.Bot(command_prefix='!', intents=intents)
 # Ensure data directory exists
 os.makedirs(DATA_DIR, exist_ok=True)
 data_manager = DataManager(data_file=os.path.join(DATA_DIR, 'gm_data.json'))
-
-
-def is_morning_time() -> bool:
-    """Check if current time is within morning hours"""
-    tz = pytz.timezone(TIMEZONE)
-    current_time = datetime.now(tz)
-    current_hour = current_time.hour
-
-    # Check if current hour is within morning range
-    return MORNING_START_HOUR <= current_hour < MORNING_END_HOUR
 
 
 def format_leaderboard(limit: int = 10) -> discord.Embed:
@@ -127,20 +115,6 @@ async def on_message(message):
 
     # Check if message matches GM allowlist
     if data_manager.is_gm_message(message.content):
-        # Check if it's morning time
-        if not is_morning_time():
-            # Not morning - reject with thumbs down
-            await message.add_reaction("👎")
-            tz = pytz.timezone(TIMEZONE)
-            current_time = datetime.now(tz)
-            await message.channel.send(
-                f"❌ {message.author.mention}, it's {current_time.strftime('%I:%M %p')} - "
-                f"you can only say GM between {MORNING_START_HOUR}:00 and {MORNING_END_HOUR}:00! "
-                f"Try again in the morning! 🌙"
-            )
-            await bot.process_commands(message)
-            return
-
         # Record the GM
         user_id = str(message.author.id)
         username = message.author.display_name

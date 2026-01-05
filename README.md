@@ -5,7 +5,6 @@ A Discord bot that tracks daily "GM" (Good Morning) streaks and maintains a mont
 ## Features
 
 - **Streak Tracking**: Automatically tracks consecutive days users say "GM"
-- **Morning Validation**: Only accepts GM messages during morning hours (5 AM - 12 PM by default, configurable)
 - **Customizable Allowlist**: Configure which phrases count as GM
 - **Leaderboard**: Monthly leaderboard showing top GM warriors
 - **Automatic Posts**: Posts leaderboard every Monday at 9 AM
@@ -16,12 +15,11 @@ A Discord bot that tracks daily "GM" (Good Morning) streaks and maintains a mont
 
 ## How It Works
 
-1. Users say "GM" (or other allowed phrases) in the designated Discord channel **during morning hours**
-2. Bot validates the time and tracks consecutive days
-3. If a user says GM outside morning hours, they get a thumbs down reaction and error message
-4. If a user misses a day, their streak resets
-5. Leaderboard is automatically posted every Monday morning
-6. All streaks reset monthly
+1. Users say "GM" (or other allowed phrases) in the designated Discord channel
+2. Bot tracks consecutive days and maintains streaks
+3. If a user misses a day, their streak resets
+4. Leaderboard is automatically posted every Monday morning
+5. All streaks reset monthly
 
 ## Setup
 
@@ -66,16 +64,12 @@ pip install -r requirements.txt
    DISCORD_TOKEN=your_bot_token_here
    GM_CHANNEL_ID=your_channel_id_here
    TIMEZONE=America/New_York
-   MORNING_START_HOUR=5
-   MORNING_END_HOUR=12
    ```
 
    **Configuration Options:**
    - `DISCORD_TOKEN`: Your Discord bot token (required)
    - `GM_CHANNEL_ID`: Channel ID where bot should operate (optional - leave empty for all channels)
    - `TIMEZONE`: Timezone for scheduling (e.g., `America/New_York`, `Europe/London`, `UTC`)
-   - `MORNING_START_HOUR`: Start of morning hours in 24-hour format (default: 5 = 5 AM)
-   - `MORNING_END_HOUR`: End of morning hours in 24-hour format (default: 12 = 12 PM/noon)
    - `DATA_DIR`: Directory for data storage (default: `.` for local, `/data` for Railway)
 
    **Finding Channel ID:**
@@ -127,13 +121,6 @@ Bot: 🔥 New personal record! @User is on a 15 day streak! Keep it up! 🚀
 ```
 User: /leaderboard
 Bot: [Displays formatted leaderboard with top 10 users]
-```
-
-**Saying GM outside morning hours:**
-```
-User: GM (at 3:00 PM)
-Bot: 👎 [reacts with thumbs down]
-Bot: ❌ @User, it's 03:00 PM - you can only say GM between 5:00 and 12:00! Try again in the morning! 🌙
 ```
 
 ## Scheduled Tasks
@@ -236,8 +223,6 @@ Railway is the easiest way to deploy this bot to the cloud. The repository is al
      - `GM_CHANNEL_ID`: Your channel ID (optional)
      - `TIMEZONE`: Your timezone (e.g., `America/New_York`)
      - `DATA_DIR`: `/data` (tells the bot to use the persistent volume)
-     - `MORNING_START_HOUR`: `5` (optional, default is 5)
-     - `MORNING_END_HOUR`: `12` (optional, default is 12)
 
 7. **Deploy!** Railway will automatically:
    - Install dependencies from `requirements.txt`
