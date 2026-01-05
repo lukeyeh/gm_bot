@@ -235,7 +235,7 @@ class DataManager:
                 return True
         return False
 
-    def is_gm_message(self, message: str, current_hour: int = None) -> bool:
+    def is_gm_message(self, message: str, current_hour: int = None) -> Tuple[bool, str, str]:
         """
         Check if a message matches any phrase in the allowlist and time range
 
@@ -244,7 +244,10 @@ class DataManager:
             current_hour: Current hour (0-23) for time range validation
 
         Returns:
-            True if message matches allowlist criteria and time range
+            Tuple of (is_valid, matched_phrase, time_range)
+            - is_valid: True if both phrase matches AND time is valid
+            - matched_phrase: The phrase that was matched (or empty string)
+            - time_range: The time range of the matched phrase (or empty string)
         """
         message_lower = message.lower().strip()
 
@@ -264,14 +267,17 @@ class DataManager:
             if not phrase_matches:
                 continue
 
-            # Check time range if provided
+            # Phrase matched - now check time range
             if current_hour is not None and time_range != "anytime":
                 if not self._is_within_time_range(current_hour, time_range):
-                    continue
+                    # Phrase matched but time is invalid
+                    return False, phrase, time_range
 
-            return True
+            # Both phrase and time are valid
+            return True, phrase, time_range
 
-        return False
+        # No phrase matched
+        return False, "", ""
 
     def _is_within_time_range(self, current_hour: int, time_range: str) -> bool:
         """Check if current hour is within the specified time range"""

@@ -118,8 +118,22 @@ async def on_message(message):
     current_time = datetime.now(tz)
     current_hour = current_time.hour
 
-    if data_manager.is_gm_message(message.content, current_hour):
-        # Record the GM
+    is_valid, matched_phrase, time_range = data_manager.is_gm_message(message.content, current_hour)
+
+    if matched_phrase:  # Phrase was matched
+        if not is_valid:
+            # Phrase matched but outside time range
+            await message.add_reaction("⏰")
+            if '-' in time_range:
+                start, end = time_range.split('-')
+                await message.channel.send(
+                    f"⏰ {message.author.mention}, `{matched_phrase}` can only be said between "
+                    f"**{start}:00 - {end}:00**! Current time: {current_time.strftime('%H:%M')} ({TIMEZONE})"
+                )
+            await bot.process_commands(message)
+            return
+
+        # Valid GM message - record it
         user_id = str(message.author.id)
         username = message.author.display_name
 
