@@ -21,6 +21,7 @@ GM_CHANNEL_ID = os.getenv('GM_CHANNEL_ID')
 TIMEZONE = os.getenv('TIMEZONE', 'UTC')
 MORNING_START_HOUR = int(os.getenv('MORNING_START_HOUR', '5'))  # 5 AM default
 MORNING_END_HOUR = int(os.getenv('MORNING_END_HOUR', '12'))    # 12 PM default
+DATA_DIR = os.getenv('DATA_DIR', '.')  # Data directory for persistent storage
 
 # Initialize bot
 intents = discord.Intents.default()
@@ -29,7 +30,10 @@ intents.guilds = True
 intents.members = True
 
 bot = commands.Bot(command_prefix='!', intents=intents)
-data_manager = DataManager()
+
+# Ensure data directory exists
+os.makedirs(DATA_DIR, exist_ok=True)
+data_manager = DataManager(data_file=os.path.join(DATA_DIR, 'gm_data.json'))
 
 
 def is_morning_time() -> bool:

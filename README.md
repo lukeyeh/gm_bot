@@ -76,6 +76,7 @@ pip install -r requirements.txt
    - `TIMEZONE`: Timezone for scheduling (e.g., `America/New_York`, `Europe/London`, `UTC`)
    - `MORNING_START_HOUR`: Start of morning hours in 24-hour format (default: 5 = 5 AM)
    - `MORNING_END_HOUR`: End of morning hours in 24-hour format (default: 12 = 12 PM/noon)
+   - `DATA_DIR`: Directory for data storage (default: `.` for local, `/data` for Railway)
 
    **Finding Channel ID:**
    1. Enable Developer Mode in Discord (User Settings > Advanced > Developer Mode)
@@ -219,18 +220,31 @@ Railway is the easiest way to deploy this bot to the cloud. The repository is al
 
 4. **Select this repository** from the list
 
-5. **Add environment variables** in Railway dashboard:
+5. **Set up persistent storage (IMPORTANT)**:
+   - In your Railway service, click on the "Settings" tab
+   - Scroll to "Volumes" section
+   - Click "Add Volume"
+   - Set **Mount Path** to `/data`
+   - Click "Add"
+   - This ensures your streak data persists across deployments!
+
+6. **Add environment variables** in Railway dashboard:
    - Click on your service
    - Go to "Variables" tab
    - Add the following variables:
      - `DISCORD_TOKEN`: Your Discord bot token
      - `GM_CHANNEL_ID`: Your channel ID (optional)
      - `TIMEZONE`: Your timezone (e.g., `America/New_York`)
+     - `DATA_DIR`: `/data` (tells the bot to use the persistent volume)
+     - `MORNING_START_HOUR`: `5` (optional, default is 5)
+     - `MORNING_END_HOUR`: `12` (optional, default is 12)
 
-6. **Deploy!** Railway will automatically:
+7. **Deploy!** Railway will automatically:
    - Install dependencies from `requirements.txt`
-   - Use the `Procfile` to start the bot
+   - Use the configuration from `railway.toml`
+   - Mount the persistent volume
    - Keep the bot running 24/7
+   - Preserve your data across deployments
 
 ### Railway Features
 
@@ -248,9 +262,12 @@ Railway is the easiest way to deploy this bot to the cloud. The repository is al
 
 ### Important Notes for Railway
 
-- The `gm_data.json` file persists between restarts
+- **CRITICAL**: You MUST set up a volume at `/data` for data persistence (see step 5 above)
+- Without a volume, your streak data will be lost on each deployment
+- The `gm_data.json` file is stored in the mounted volume and persists between deployments
+- Make sure to set `DATA_DIR=/data` in your environment variables
 - Logs are available in the Railway dashboard
-- The bot automatically restarts if it crashes (configured in `railway.json`)
+- The bot automatically restarts if it crashes (configured in `railway.toml`)
 
 ## Running in Production (Self-Hosted)
 
