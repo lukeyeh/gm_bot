@@ -181,9 +181,56 @@ elif streak % 7 == 0:  # Weekly milestone
 - Check that the bot has write permissions in its directory
 - Verify `gm_data.json` is being created and updated
 
-## Running in Production
+## Deploy to Railway
 
-For production deployment, consider:
+Railway is the easiest way to deploy this bot to the cloud. The repository is already configured for Railway deployment.
+
+### Quick Deploy
+
+1. **Fork or clone this repository** to your GitHub account
+
+2. **Go to [Railway](https://railway.app/)** and sign in with GitHub
+
+3. **Click "New Project"** → "Deploy from GitHub repo"
+
+4. **Select this repository** from the list
+
+5. **Add environment variables** in Railway dashboard:
+   - Click on your service
+   - Go to "Variables" tab
+   - Add the following variables:
+     - `DISCORD_TOKEN`: Your Discord bot token
+     - `GM_CHANNEL_ID`: Your channel ID (optional)
+     - `TIMEZONE`: Your timezone (e.g., `America/New_York`)
+
+6. **Deploy!** Railway will automatically:
+   - Install dependencies from `requirements.txt`
+   - Use the `Procfile` to start the bot
+   - Keep the bot running 24/7
+
+### Railway Features
+
+- **Automatic Deployments**: Pushes to your GitHub repo automatically deploy
+- **Built-in Logs**: View bot logs in real-time
+- **Persistent Storage**: Data persists across deployments
+- **Always On**: Bot runs continuously without downtime
+- **Free Tier**: $5 free credit per month (enough for this bot)
+
+### Monitoring Your Bot on Railway
+
+- View logs: Click on your service → "Deployments" → Select active deployment
+- Check metrics: Monitor CPU and memory usage in the dashboard
+- Restart bot: Click "Restart" in the service settings if needed
+
+### Important Notes for Railway
+
+- The `gm_data.json` file persists between restarts
+- Logs are available in the Railway dashboard
+- The bot automatically restarts if it crashes (configured in `railway.json`)
+
+## Running in Production (Self-Hosted)
+
+For self-hosted production deployment, consider:
 
 1. **Process Manager**: Use `systemd`, `pm2`, or `supervisor` to keep the bot running
 2. **Log Management**: Redirect output to log files
