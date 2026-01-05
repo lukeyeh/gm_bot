@@ -3,6 +3,7 @@ GM Bot - Track daily GM streaks on Discord
 """
 import os
 import discord
+from discord import app_commands
 from discord.ext import commands, tasks
 from datetime import datetime, time
 from dotenv import load_dotenv
@@ -79,6 +80,13 @@ async def on_ready():
     print(f'{bot.user} has connected to Discord!')
     print(f'Bot is in {len(bot.guilds)} guild(s)')
 
+    # Sync slash commands with Discord
+    try:
+        synced = await bot.tree.sync()
+        print(f'Synced {len(synced)} command(s)')
+    except Exception as e:
+        print(f'Failed to sync commands: {e}')
+
     # Start scheduled tasks
     start_scheduler()
 
@@ -139,8 +147,9 @@ async def on_message(message):
     await bot.process_commands(message)
 
 
-@bot.command(name='leaderboard', aliases=['lb', 'top'])
-async def leaderboard_command(ctx, limit: int = 10):
+@bot.tree.command(name='leaderboard', description='Show the GM leaderboard')
+@app_commands.describe(limit='Number of users to show (1-25, default: 10)')
+async def leaderboard_command(interaction: discord.Interaction, limit: int = 10):
     """Show the GM leaderboard"""
     if limit < 1:
         limit = 10
@@ -148,34 +157,34 @@ async def leaderboard_command(ctx, limit: int = 10):
         limit = 25
 
     embed = format_leaderboard(limit)
-    await ctx.send(embed=embed)
+    await interaction.response.send_message(embed=embed)
 
 
-@bot.command(name='streak', aliases=['mystreak', 'mystats'])
-async def streak_command(ctx):
+@bot.tree.command(name='streak', description='Check your current GM streak')
+async def streak_command(interaction: discord.Interaction):
     """Check your current streak"""
-    user_id = str(ctx.author.id)
+    user_id = str(interaction.user.id)
     streak = data_manager.get_user_streak(user_id)
 
     if streak == 0:
-        await ctx.send(
-            f"{ctx.author.mention}, you don't have an active streak yet! "
+        await interaction.response.send_message(
+            f"{interaction.user.mention}, you don't have an active streak yet! "
             f"Say GM to start one! 🌅"
         )
     else:
         user_data = data_manager.data["users"].get(user_id, {})
         best = user_data.get("best_streak", 0)
 
-        message = f"🔥 {ctx.author.mention}, your current streak is **{streak} day{'s' if streak != 1 else ''}**!"
+        message = f"🔥 {interaction.user.mention}, your current streak is **{streak} day{'s' if streak != 1 else ''}**!"
 
         if best > streak:
             message += f"\nYour best this month: **{best} days**"
 
-        await ctx.send(message)
+        await interaction.response.send_message(message)
 
 
-@bot.command(name='gmhelp', aliases=['gminfo'])
-async def help_command(ctx):
+@bot.tree.command(name='gmhelp', description='Show bot help and information')
+async def help_command(interaction: discord.Interaction):
     """Show bot help"""
     embed = discord.Embed(
         title="GM Bot Help",
@@ -196,9 +205,9 @@ async def help_command(ctx):
     embed.add_field(
         name="Commands",
         value=(
-            "`!leaderboard` or `!lb` - Show the top GM warriors\n"
-            "`!streak` or `!mystreak` - Check your current streak\n"
-            "`!gmhelp` - Show this help message"
+            "`/leaderboard` - Show the top GM warriors\n"
+            "`/streak` - Check your current streak\n"
+            "`/gmhelp` - Show this help message"
         ),
         inline=False
     )
@@ -209,7 +218,7 @@ async def help_command(ctx):
         inline=False
     )
 
-    await ctx.send(embed=embed)
+    await interaction.response.send_message(embed=embed)
 
 
 async def post_weekly_leaderboard():

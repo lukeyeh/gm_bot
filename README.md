@@ -37,7 +37,7 @@ A Discord bot that tracks daily "GM" (Good Morning) streaks and maintains a mont
    - SERVER MEMBERS INTENT
 5. Click "Reset Token" and copy your bot token
 6. Go to OAuth2 > URL Generator:
-   - Select scopes: `bot`
+   - Select scopes: `bot` and `applications.commands`
    - Select permissions: `Send Messages`, `Read Messages/View Channels`, `Add Reactions`, `Embed Links`
    - Copy the generated URL and use it to invite the bot to your server
 
@@ -84,9 +84,11 @@ The bot should now be online and ready to track GM streaks!
 
 ## Commands
 
-- `!leaderboard` or `!lb` - Display the current leaderboard
-- `!streak` or `!mystreak` - Check your current streak and stats
-- `!gmhelp` - Show help information
+The bot uses Discord slash commands (type `/` to see all available commands):
+
+- `/leaderboard` - Display the current leaderboard (optional: specify limit 1-25)
+- `/streak` - Check your current streak and stats
+- `/gmhelp` - Show help information
 
 ## Usage Examples
 
@@ -112,7 +114,7 @@ Bot: 🔥 New personal record! @User is on a 15 day streak! Keep it up! 🚀
 
 **Viewing leaderboard:**
 ```
-User: !leaderboard
+User: /leaderboard
 Bot: [Displays formatted leaderboard with top 10 users]
 ```
 
@@ -166,6 +168,11 @@ elif streak % 7 == 0:  # Weekly milestone
 ```
 
 ## Troubleshooting
+
+**Bot commands don't appear:**
+- Make sure you invited the bot with the `applications.commands` scope
+- Wait a few minutes for commands to sync with Discord after the bot starts
+- If the bot was already in your server before adding slash commands, you may need to re-invite it with the updated URL that includes `applications.commands`
 
 **Bot doesn't respond to messages:**
 - Make sure MESSAGE CONTENT INTENT is enabled in Discord Developer Portal
