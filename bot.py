@@ -109,10 +109,8 @@ async def on_message(message):
         await bot.process_commands(message)
         return
 
-    # Check if message contains "GM" (case-insensitive)
-    content = message.content.strip().upper()
-
-    if content == "GM" or content.startswith("GM ") or content.endswith(" GM"):
+    # Check if message matches GM allowlist
+    if data_manager.is_gm_message(message.content):
         # Record the GM
         user_id = str(message.author.id)
         username = message.author.display_name
@@ -207,6 +205,9 @@ async def help_command(interaction: discord.Interaction):
         value=(
             "`/leaderboard` - Show the top GM warriors\n"
             "`/streak` - Check your current streak\n"
+            "`/gmlist` - Show what phrases count as GM\n"
+            "`/gmadd <phrase>` - Add a phrase to allowlist (admin only)\n"
+            "`/gmremove <phrase>` - Remove a phrase from allowlist (admin only)\n"
             "`/gmhelp` - Show this help message"
         ),
         inline=False
@@ -219,6 +220,69 @@ async def help_command(interaction: discord.Interaction):
     )
 
     await interaction.response.send_message(embed=embed)
+
+
+@bot.tree.command(name='gmlist', description='Show what phrases count as GM')
+async def gmlist_command(interaction: discord.Interaction):
+    """Show the current GM allowlist"""
+    allowlist = data_manager.get_gm_allowlist()
+
+    embed = discord.Embed(
+        title="✅ GM Allowlist",
+        description="These phrases count as GM messages:",
+        color=discord.Color.green()
+    )
+
+    if allowlist:
+        phrases = "\n".join([f"• `{phrase}`" for phrase in sorted(allowlist)])
+        embed.add_field(
+            name="Accepted Phrases",
+            value=phrases,
+            inline=False
+        )
+    else:
+        embed.add_field(
+            name="No phrases yet!",
+            value="Use `/gmadd <phrase>` to add one.",
+            inline=False
+        )
+
+    embed.set_footer(text="All phrases are case-insensitive")
+    await interaction.response.send_message(embed=embed)
+
+
+@bot.tree.command(name='gmadd', description='Add a phrase to the GM allowlist (admin only)')
+@app_commands.describe(phrase='The phrase to add to the allowlist')
+@app_commands.default_permissions(administrator=True)
+async def gmadd_command(interaction: discord.Interaction, phrase: str):
+    """Add a phrase to the GM allowlist (admin only)"""
+    if not phrase or not phrase.strip():
+        await interaction.response.send_message("❌ Please provide a valid phrase to add.")
+        return
+
+    success = data_manager.add_to_allowlist(phrase)
+
+    if success:
+        await interaction.response.send_message(f"✅ Added `{phrase.lower()}` to the GM allowlist!")
+    else:
+        await interaction.response.send_message(f"ℹ️ `{phrase.lower()}` is already in the allowlist.")
+
+
+@bot.tree.command(name='gmremove', description='Remove a phrase from the GM allowlist (admin only)')
+@app_commands.describe(phrase='The phrase to remove from the allowlist')
+@app_commands.default_permissions(administrator=True)
+async def gmremove_command(interaction: discord.Interaction, phrase: str):
+    """Remove a phrase from the GM allowlist (admin only)"""
+    if not phrase or not phrase.strip():
+        await interaction.response.send_message("❌ Please provide a valid phrase to remove.")
+        return
+
+    success = data_manager.remove_from_allowlist(phrase)
+
+    if success:
+        await interaction.response.send_message(f"✅ Removed `{phrase.lower()}` from the GM allowlist!")
+    else:
+        await interaction.response.send_message(f"❌ `{phrase.lower()}` is not in the allowlist.")
 
 
 async def post_weekly_leaderboard():

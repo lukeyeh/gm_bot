@@ -11,6 +11,7 @@ class DataManager:
     def __init__(self, data_file: str = "gm_data.json"):
         self.data_file = data_file
         self.data = self._load_data()
+        self._ensure_allowlist()
 
     def _load_data(self) -> dict:
         """Load data from JSON file or create new data structure"""
@@ -25,7 +26,8 @@ class DataManager:
         return {
             "users": {},  # user_id -> {current_streak, last_gm_date, best_streak}
             "monthly_reset_date": date.today().replace(day=1).isoformat(),
-            "last_leaderboard_post": None
+            "last_leaderboard_post": None,
+            "gm_allowlist": ["gm", "good morning", "gm!", "morning"]  # Default phrases
         }
 
     def _save_data(self):
@@ -141,3 +143,66 @@ class DataManager:
     def get_total_users(self) -> int:
         """Get total number of users"""
         return len(self.data["users"])
+
+    def _ensure_allowlist(self):
+        """Ensure allowlist exists (for backward compatibility)"""
+        if "gm_allowlist" not in self.data:
+            self.data["gm_allowlist"] = ["gm", "good morning", "gm!", "morning"]
+            self._save_data()
+
+    def get_gm_allowlist(self) -> List[str]:
+        """Get the current GM allowlist"""
+        return self.data.get("gm_allowlist", ["gm"])
+
+    def add_to_allowlist(self, phrase: str) -> bool:
+        """
+        Add a phrase to the GM allowlist
+
+        Returns:
+            True if added, False if already exists
+        """
+        phrase_lower = phrase.lower().strip()
+        if not phrase_lower:
+            return False
+
+        if phrase_lower not in self.data["gm_allowlist"]:
+            self.data["gm_allowlist"].append(phrase_lower)
+            self._save_data()
+            return True
+        return False
+
+    def remove_from_allowlist(self, phrase: str) -> bool:
+        """
+        Remove a phrase from the GM allowlist
+
+        Returns:
+            True if removed, False if not found
+        """
+        phrase_lower = phrase.lower().strip()
+
+        if phrase_lower in self.data["gm_allowlist"]:
+            self.data["gm_allowlist"].remove(phrase_lower)
+            self._save_data()
+            return True
+        return False
+
+    def is_gm_message(self, message: str) -> bool:
+        """
+        Check if a message matches any phrase in the allowlist
+
+        Returns:
+            True if message matches allowlist criteria
+        """
+        message_lower = message.lower().strip()
+
+        for phrase in self.data["gm_allowlist"]:
+            phrase_lower = phrase.lower()
+            # Check for exact match, starts with, or ends with the phrase
+            if (message_lower == phrase_lower or
+                message_lower.startswith(phrase_lower + " ") or
+                message_lower.endswith(" " + phrase_lower) or
+                message_lower == phrase_lower + "!" or
+                message_lower.startswith(phrase_lower + "! ")):
+                return True
+
+        return False
