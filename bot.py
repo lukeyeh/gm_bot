@@ -119,13 +119,20 @@ async def on_message(message):
         user_id = str(message.author.id)
         username = message.author.display_name
 
-        streak, is_new_record = data_manager.record_gm(user_id, username)
+        streak, is_new_record, already_counted = data_manager.record_gm(user_id, username)
 
         # React to the message
         await message.add_reaction("🌅")
 
-        # Send encouragement message
-        if is_new_record and streak > 1:
+        # Send appropriate message based on situation
+        if already_counted:
+            # User already said GM today
+            await message.channel.send(
+                f"☀️ {message.author.mention}, you already said GM today! "
+                f"Your current streak is **{streak} day{'s' if streak != 1 else ''}**. "
+                f"Come back tomorrow to keep it going!"
+            )
+        elif is_new_record and streak > 1:
             await message.channel.send(
                 f"🔥 **New personal record!** {message.author.mention} is on a "
                 f"**{streak} day streak!** Keep it up! 🚀"

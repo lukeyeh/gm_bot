@@ -35,12 +35,12 @@ class DataManager:
         with open(self.data_file, 'w') as f:
             json.dump(self.data, f, indent=2)
 
-    def record_gm(self, user_id: str, username: str) -> Tuple[int, bool]:
+    def record_gm(self, user_id: str, username: str) -> Tuple[int, bool, bool]:
         """
         Record a GM for a user and update their streak
 
         Returns:
-            Tuple of (current_streak, is_new_record)
+            Tuple of (current_streak, is_new_record, already_counted_today)
         """
         today = date.today().isoformat()
         user_id = str(user_id)
@@ -59,7 +59,7 @@ class DataManager:
 
         # Check if user already said GM today
         if last_gm == today:
-            return user_data["current_streak"], False
+            return user_data["current_streak"], False, True
 
         # Update username in case it changed
         user_data["username"] = username
@@ -88,7 +88,7 @@ class DataManager:
             user_data["best_streak"] = user_data["current_streak"]
 
         self._save_data()
-        return user_data["current_streak"], is_new_record
+        return user_data["current_streak"], is_new_record, False
 
     def get_user_streak(self, user_id: str) -> int:
         """Get current streak for a user"""
