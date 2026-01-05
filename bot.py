@@ -113,8 +113,12 @@ async def on_message(message):
         await bot.process_commands(message)
         return
 
-    # Check if message matches GM allowlist
-    if data_manager.is_gm_message(message.content):
+    # Check if message matches GM allowlist (with time validation)
+    tz = pytz.timezone(TIMEZONE)
+    current_time = datetime.now(tz)
+    current_hour = current_time.hour
+
+    if data_manager.is_gm_message(message.content, current_hour):
         # Record the GM
         user_id = str(message.author.id)
         username = message.author.display_name
@@ -245,38 +249,60 @@ async def gmlist_command(interaction: discord.Interaction):
     )
 
     if allowlist:
-        phrases = "\n".join([f"• `{phrase}`" for phrase in sorted(allowlist)])
+        # Sort by phrase
+        sorted_list = sorted(allowlist, key=lambda x: x["phrase"])
+
+        phrases = []
+        for item in sorted_list:
+            phrase = item["phrase"]
+            time_range = item.get("time_range", "anytime")
+
+            if time_range == "anytime":
+                phrases.append(f"• `{phrase}` - ⏰ Anytime")
+            else:
+                phrases.append(f"• `{phrase}` - ⏰ {time_range}:00")
+
         embed.add_field(
             name="Accepted Phrases",
-            value=phrases,
+            value="\n".join(phrases),
             inline=False
         )
     else:
         embed.add_field(
             name="No phrases yet!",
-            value="Use `/gmadd <phrase>` to add one.",
+            value="Use `/gmadd <phrase> <time_range>` to add one.",
             inline=False
         )
 
-    embed.set_footer(text="All phrases are case-insensitive")
+    embed.set_footer(text="All phrases are case-insensitive | Time ranges in 24-hour format")
     await interaction.response.send_message(embed=embed)
 
 
-@bot.tree.command(name='gmadd', description='Add a phrase to the GM allowlist (admin only)')
-@app_commands.describe(phrase='The phrase to add to the allowlist')
+@bot.tree.command(name='gmadd', description='Add a phrase to the GM allowlist with time range (admin only)')
+@app_commands.describe(
+    phrase='The phrase to add to the allowlist',
+    time_range='Time range (e.g., "5-12" for 5 AM-12 PM, or "anytime" for 24/7)'
+)
 @app_commands.default_permissions(administrator=True)
-async def gmadd_command(interaction: discord.Interaction, phrase: str):
-    """Add a phrase to the GM allowlist (admin only)"""
+async def gmadd_command(interaction: discord.Interaction, phrase: str, time_range: str = "anytime"):
+    """Add a phrase to the GM allowlist with optional time range (admin only)"""
     if not phrase or not phrase.strip():
         await interaction.response.send_message("❌ Please provide a valid phrase to add.")
         return
 
-    success = data_manager.add_to_allowlist(phrase)
+    success, error_msg = data_manager.add_to_allowlist(phrase, time_range)
 
     if success:
-        await interaction.response.send_message(f"✅ Added `{phrase.lower()}` to the GM allowlist!")
+        if time_range.lower() == "anytime":
+            await interaction.response.send_message(
+                f"✅ Added `{phrase.lower()}` to the GM allowlist! (Valid anytime)"
+            )
+        else:
+            await interaction.response.send_message(
+                f"✅ Added `{phrase.lower()}` to the GM allowlist! (Valid {time_range}:00)"
+            )
     else:
-        await interaction.response.send_message(f"ℹ️ `{phrase.lower()}` is already in the allowlist.")
+        await interaction.response.send_message(f"❌ {error_msg}")
 
 
 @bot.tree.command(name='gmremove', description='Remove a phrase from the GM allowlist (admin only)')

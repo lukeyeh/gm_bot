@@ -27,7 +27,12 @@ class DataManager:
             "users": {},  # user_id -> {current_streak, last_gm_date, best_streak}
             "monthly_reset_date": date.today().replace(day=1).isoformat(),
             "last_leaderboard_post": None,
-            "gm_allowlist": ["gm", "good morning", "gm!", "morning"]  # Default phrases
+            "gm_allowlist": [  # List of {phrase, time_range} objects
+                {"phrase": "gm", "time_range": "anytime"},
+                {"phrase": "good morning", "time_range": "anytime"},
+                {"phrase": "gm!", "time_range": "anytime"},
+                {"phrase": "morning", "time_range": "anytime"}
+            ]
         }
 
     def _save_data(self):
@@ -145,31 +150,74 @@ class DataManager:
         return len(self.data["users"])
 
     def _ensure_allowlist(self):
-        """Ensure allowlist exists (for backward compatibility)"""
+        """Ensure allowlist exists and migrate from old format if needed"""
         if "gm_allowlist" not in self.data:
-            self.data["gm_allowlist"] = ["gm", "good morning", "gm!", "morning"]
+            # Create new allowlist with default phrases
+            self.data["gm_allowlist"] = [
+                {"phrase": "gm", "time_range": "anytime"},
+                {"phrase": "good morning", "time_range": "anytime"},
+                {"phrase": "gm!", "time_range": "anytime"},
+                {"phrase": "morning", "time_range": "anytime"}
+            ]
             self._save_data()
+        elif self.data["gm_allowlist"] and isinstance(self.data["gm_allowlist"][0], str):
+            # Migrate old format (list of strings) to new format (list of objects)
+            old_list = self.data["gm_allowlist"]
+            self.data["gm_allowlist"] = [
+                {"phrase": phrase, "time_range": "anytime"} for phrase in old_list
+            ]
+            self._save_data()
+            print("Migrated GM allowlist to new time-range format")
 
-    def get_gm_allowlist(self) -> List[str]:
-        """Get the current GM allowlist"""
-        return self.data.get("gm_allowlist", ["gm"])
+    def get_gm_allowlist(self) -> List[Dict]:
+        """Get the current GM allowlist with time ranges"""
+        return self.data.get("gm_allowlist", [{"phrase": "gm", "time_range": "anytime"}])
 
-    def add_to_allowlist(self, phrase: str) -> bool:
+    def add_to_allowlist(self, phrase: str, time_range: str = "anytime") -> Tuple[bool, str]:
         """
-        Add a phrase to the GM allowlist
+        Add a phrase to the GM allowlist with time range
+
+        Args:
+            phrase: The phrase to add
+            time_range: Time range in format "HH-HH" (e.g., "5-12") or "anytime"
 
         Returns:
-            True if added, False if already exists
+            Tuple of (success: bool, error_message: str)
         """
         phrase_lower = phrase.lower().strip()
         if not phrase_lower:
-            return False
+            return False, "Phrase cannot be empty"
 
-        if phrase_lower not in self.data["gm_allowlist"]:
-            self.data["gm_allowlist"].append(phrase_lower)
-            self._save_data()
-            return True
-        return False
+        # Validate time range
+        if time_range.lower() != "anytime":
+            if not self._validate_time_range(time_range):
+                return False, "Invalid time range format. Use 'HH-HH' (e.g., '5-12') or 'anytime'"
+
+        # Check if phrase already exists
+        for item in self.data["gm_allowlist"]:
+            if item["phrase"] == phrase_lower:
+                return False, f"Phrase '{phrase_lower}' already exists"
+
+        # Add new phrase
+        self.data["gm_allowlist"].append({
+            "phrase": phrase_lower,
+            "time_range": time_range.lower()
+        })
+        self._save_data()
+        return True, ""
+
+    def _validate_time_range(self, time_range: str) -> bool:
+        """Validate time range format (HH-HH)"""
+        try:
+            if '-' not in time_range:
+                return False
+            parts = time_range.split('-')
+            if len(parts) != 2:
+                return False
+            start, end = int(parts[0]), int(parts[1])
+            return 0 <= start <= 23 and 0 <= end <= 23
+        except (ValueError, IndexError):
+            return False
 
     def remove_from_allowlist(self, phrase: str) -> bool:
         """
@@ -180,29 +228,60 @@ class DataManager:
         """
         phrase_lower = phrase.lower().strip()
 
-        if phrase_lower in self.data["gm_allowlist"]:
-            self.data["gm_allowlist"].remove(phrase_lower)
-            self._save_data()
-            return True
+        for item in self.data["gm_allowlist"]:
+            if item["phrase"] == phrase_lower:
+                self.data["gm_allowlist"].remove(item)
+                self._save_data()
+                return True
         return False
 
-    def is_gm_message(self, message: str) -> bool:
+    def is_gm_message(self, message: str, current_hour: int = None) -> bool:
         """
-        Check if a message matches any phrase in the allowlist
+        Check if a message matches any phrase in the allowlist and time range
+
+        Args:
+            message: The message to check
+            current_hour: Current hour (0-23) for time range validation
 
         Returns:
-            True if message matches allowlist criteria
+            True if message matches allowlist criteria and time range
         """
         message_lower = message.lower().strip()
 
-        for phrase in self.data["gm_allowlist"]:
-            phrase_lower = phrase.lower()
-            # Check for exact match, starts with, or ends with the phrase
-            if (message_lower == phrase_lower or
-                message_lower.startswith(phrase_lower + " ") or
-                message_lower.endswith(" " + phrase_lower) or
-                message_lower == phrase_lower + "!" or
-                message_lower.startswith(phrase_lower + "! ")):
-                return True
+        for item in self.data["gm_allowlist"]:
+            phrase = item["phrase"]
+            time_range = item.get("time_range", "anytime")
+
+            # Check if message matches the phrase
+            phrase_matches = (
+                message_lower == phrase or
+                message_lower.startswith(phrase + " ") or
+                message_lower.endswith(" " + phrase) or
+                message_lower == phrase + "!" or
+                message_lower.startswith(phrase + "! ")
+            )
+
+            if not phrase_matches:
+                continue
+
+            # Check time range if provided
+            if current_hour is not None and time_range != "anytime":
+                if not self._is_within_time_range(current_hour, time_range):
+                    continue
+
+            return True
 
         return False
+
+    def _is_within_time_range(self, current_hour: int, time_range: str) -> bool:
+        """Check if current hour is within the specified time range"""
+        try:
+            start, end = map(int, time_range.split('-'))
+            if start <= end:
+                # Normal range (e.g., 5-12)
+                return start <= current_hour < end
+            else:
+                # Crosses midnight (e.g., 22-2)
+                return current_hour >= start or current_hour < end
+        except (ValueError, AttributeError):
+            return True  # If invalid range, allow it
