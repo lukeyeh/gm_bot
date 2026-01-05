@@ -307,4 +307,10 @@ if __name__ == '__main__':
         print("Please create a .env file with your bot token.")
         exit(1)
 
+    # Safe token debugging (doesn't expose the actual token)
+    print(f"Token length: {len(TOKEN)}")
+    print(f"Token starts with: {TOKEN[:10]}...")
+    print(f"Token ends with: ...{TOKEN[-10:]}")
+    print(f"Token has whitespace: {TOKEN != TOKEN.strip()}")
+
     bot.run(TOKEN)
