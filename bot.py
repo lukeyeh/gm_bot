@@ -237,6 +237,7 @@ async def help_command(interaction: discord.Interaction):
             "`/gmlist` - Show what phrases count as GM\n"
             "`/gmadd <phrase>` - Add a phrase to allowlist (admin only)\n"
             "`/gmremove <phrase>` - Remove a phrase from allowlist (admin only)\n"
+            "`/resetall` - Reset all data and streaks (admin only)\n"
             "`/gmhelp` - Show this help message"
         ),
         inline=False
@@ -334,6 +335,32 @@ async def gmremove_command(interaction: discord.Interaction, phrase: str):
         await interaction.response.send_message(f"✅ Removed `{phrase}` from the GM allowlist!")
     else:
         await interaction.response.send_message(f"❌ `{phrase}` is not in the allowlist.")
+
+
+@bot.tree.command(name='resetall', description='Reset ALL user data and streaks (admin only)')
+@app_commands.default_permissions(administrator=True)
+async def resetall_command(interaction: discord.Interaction):
+    """Reset all user data and streaks - DESTRUCTIVE OPERATION (admin only)"""
+    # Defer the response since we want to add a confirmation step
+    await interaction.response.defer(ephemeral=True)
+
+    # Get user count before reset
+    user_count = data_manager.get_total_users()
+
+    if user_count == 0:
+        await interaction.followup.send("ℹ️ No data to reset - the database is already empty.")
+        return
+
+    # Reset all data
+    cleared = data_manager.reset_all()
+
+    await interaction.followup.send(
+        f"⚠️ **ALL DATA HAS BEEN RESET!**\n\n"
+        f"• Cleared {cleared} user(s)\n"
+        f"• All streaks deleted\n"
+        f"• Leaderboard cleared\n\n"
+        f"Users can start fresh by saying GM!"
+    )
 
 
 async def post_weekly_leaderboard():

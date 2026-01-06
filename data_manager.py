@@ -148,6 +148,21 @@ class DataManager:
         return (today.year > last_reset.year or
                 (today.year == last_reset.year and today.month > last_reset.month))
 
+    def reset_all(self) -> int:
+        """
+        Reset ALL data - clears all users and their streaks completely.
+        This is a destructive operation and should only be used by admins.
+
+        Returns:
+            Number of users that were cleared
+        """
+        user_count = len(self.data["users"])
+        self.data["users"] = {}
+        self.data["monthly_reset_date"] = self._get_current_date().replace(day=1).isoformat()
+        self.data["last_leaderboard_post"] = None
+        self._save_data()
+        return user_count
+
     def mark_leaderboard_posted(self):
         """Mark that leaderboard was posted"""
         self.data["last_leaderboard_post"] = datetime.now().isoformat()
