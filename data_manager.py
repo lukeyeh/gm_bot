@@ -3,13 +3,17 @@ Data manager for GM Bot streak tracking
 """
 import json
 import os
+import pytz
 from datetime import datetime, date
 from typing import Dict, List, Tuple
 
 
 class DataManager:
-    def __init__(self, data_file: str = "gm_data.json"):
+    def __init__(self, data_file: str = "gm_data.json", timezone: str = None):
         self.data_file = data_file
+        # Use provided timezone or get from environment variable, default to UTC
+        self.timezone_str = timezone or os.getenv('TIMEZONE', 'UTC')
+        self.timezone = pytz.timezone(self.timezone_str)
         self.data = self._load_data()
         self._ensure_allowlist()
 
@@ -25,7 +29,7 @@ class DataManager:
         # Initialize new data structure
         return {
             "users": {},  # user_id -> {current_streak, last_gm_date, best_streak}
-            "monthly_reset_date": date.today().replace(day=1).isoformat(),
+            "monthly_reset_date": self._get_current_date().replace(day=1).isoformat(),
             "last_leaderboard_post": None,
             "gm_allowlist": [  # List of {phrase, time_range} objects
                 {"phrase": "gm", "time_range": "anytime"},
@@ -40,6 +44,10 @@ class DataManager:
         with open(self.data_file, 'w') as f:
             json.dump(self.data, f, indent=2)
 
+    def _get_current_date(self) -> date:
+        """Get current date in the configured timezone"""
+        return datetime.now(self.timezone).date()
+
     def record_gm(self, user_id: str, username: str) -> Tuple[int, bool, bool]:
         """
         Record a GM for a user and update their streak
@@ -47,7 +55,7 @@ class DataManager:
         Returns:
             Tuple of (current_streak, is_new_record, already_counted_today)
         """
-        today = date.today().isoformat()
+        today = self._get_current_date().isoformat()
         user_id = str(user_id)
 
         # Initialize user if they don't exist
@@ -75,7 +83,7 @@ class DataManager:
             user_data["current_streak"] = 1
         else:
             last_date = date.fromisoformat(last_gm)
-            today_date = date.today()
+            today_date = self._get_current_date()
             days_diff = (today_date - last_date).days
 
             if days_diff == 1:
@@ -128,13 +136,13 @@ class DataManager:
             user_data["last_gm_date"] = None
             user_data["best_streak"] = 0
 
-        self.data["monthly_reset_date"] = date.today().replace(day=1).isoformat()
+        self.data["monthly_reset_date"] = self._get_current_date().replace(day=1).isoformat()
         self._save_data()
 
     def should_reset_monthly(self) -> bool:
         """Check if we should reset for a new month"""
         last_reset = date.fromisoformat(self.data["monthly_reset_date"])
-        today = date.today()
+        today = self._get_current_date()
 
         # Check if we're in a new month
         return (today.year > last_reset.year or

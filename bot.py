@@ -31,7 +31,7 @@ bot = commands.Bot(command_prefix='!', intents=intents)
 
 # Ensure data directory exists
 os.makedirs(DATA_DIR, exist_ok=True)
-data_manager = DataManager(data_file=os.path.join(DATA_DIR, 'gm_data.json'))
+data_manager = DataManager(data_file=os.path.join(DATA_DIR, 'gm_data.json'), timezone=TIMEZONE)
 
 
 def format_leaderboard(limit: int = 10) -> discord.Embed:
