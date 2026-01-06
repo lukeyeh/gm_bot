@@ -288,7 +288,7 @@ async def gmlist_command(interaction: discord.Interaction):
             inline=False
         )
 
-    embed.set_footer(text="All phrases are case-insensitive | Time ranges in 24-hour format")
+    embed.set_footer(text="Phrases are case-sensitive | Time ranges in 24-hour format")
     await interaction.response.send_message(embed=embed)
 
 
@@ -309,11 +309,11 @@ async def gmadd_command(interaction: discord.Interaction, phrase: str, time_rang
     if success:
         if time_range.lower() == "anytime":
             await interaction.response.send_message(
-                f"✅ Added `{phrase.lower()}` to the GM allowlist! (Valid anytime)"
+                f"✅ Added `{phrase}` to the GM allowlist! (Valid anytime)"
             )
         else:
             await interaction.response.send_message(
-                f"✅ Added `{phrase.lower()}` to the GM allowlist! (Valid {time_range}:00)"
+                f"✅ Added `{phrase}` to the GM allowlist! (Valid {time_range}:00)"
             )
     else:
         await interaction.response.send_message(f"❌ {error_msg}")
@@ -331,9 +331,9 @@ async def gmremove_command(interaction: discord.Interaction, phrase: str):
     success = data_manager.remove_from_allowlist(phrase)
 
     if success:
-        await interaction.response.send_message(f"✅ Removed `{phrase.lower()}` from the GM allowlist!")
+        await interaction.response.send_message(f"✅ Removed `{phrase}` from the GM allowlist!")
     else:
-        await interaction.response.send_message(f"❌ `{phrase.lower()}` is not in the allowlist.")
+        await interaction.response.send_message(f"❌ `{phrase}` is not in the allowlist.")
 
 
 async def post_weekly_leaderboard():

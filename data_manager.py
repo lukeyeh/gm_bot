@@ -178,14 +178,14 @@ class DataManager:
         Add a phrase to the GM allowlist with time range
 
         Args:
-            phrase: The phrase to add
+            phrase: The phrase to add (case-sensitive)
             time_range: Time range in format "HH-HH" (e.g., "5-12") or "anytime"
 
         Returns:
             Tuple of (success: bool, error_message: str)
         """
-        phrase_lower = phrase.lower().strip()
-        if not phrase_lower:
+        phrase = phrase.strip()
+        if not phrase:
             return False, "Phrase cannot be empty"
 
         # Validate time range
@@ -195,12 +195,12 @@ class DataManager:
 
         # Check if phrase already exists
         for item in self.data["gm_allowlist"]:
-            if item["phrase"] == phrase_lower:
-                return False, f"Phrase '{phrase_lower}' already exists"
+            if item["phrase"] == phrase:
+                return False, f"Phrase '{phrase}' already exists"
 
         # Add new phrase
         self.data["gm_allowlist"].append({
-            "phrase": phrase_lower,
+            "phrase": phrase,
             "time_range": time_range.lower()
         })
         self._save_data()
@@ -221,15 +221,15 @@ class DataManager:
 
     def remove_from_allowlist(self, phrase: str) -> bool:
         """
-        Remove a phrase from the GM allowlist
+        Remove a phrase from the GM allowlist (case-sensitive)
 
         Returns:
             True if removed, False if not found
         """
-        phrase_lower = phrase.lower().strip()
+        phrase = phrase.strip()
 
         for item in self.data["gm_allowlist"]:
-            if item["phrase"] == phrase_lower:
+            if item["phrase"] == phrase:
                 self.data["gm_allowlist"].remove(item)
                 self._save_data()
                 return True
@@ -237,7 +237,7 @@ class DataManager:
 
     def is_gm_message(self, message: str, current_hour: int = None) -> Tuple[bool, str, str]:
         """
-        Check if a message matches any phrase in the allowlist and time range
+        Check if a message matches any phrase in the allowlist and time range (case-sensitive)
 
         Args:
             message: The message to check
@@ -249,19 +249,19 @@ class DataManager:
             - matched_phrase: The phrase that was matched (or empty string)
             - time_range: The time range of the matched phrase (or empty string)
         """
-        message_lower = message.lower().strip()
+        message = message.strip()
 
         for item in self.data["gm_allowlist"]:
             phrase = item["phrase"]
             time_range = item.get("time_range", "anytime")
 
-            # Check if message matches the phrase
+            # Check if message matches the phrase (case-sensitive)
             phrase_matches = (
-                message_lower == phrase or
-                message_lower.startswith(phrase + " ") or
-                message_lower.endswith(" " + phrase) or
-                message_lower == phrase + "!" or
-                message_lower.startswith(phrase + "! ")
+                message == phrase or
+                message.startswith(phrase + " ") or
+                message.endswith(" " + phrase) or
+                message == phrase + "!" or
+                message.startswith(phrase + "! ")
             )
 
             if not phrase_matches:
