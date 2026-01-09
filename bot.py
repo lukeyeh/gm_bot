@@ -60,13 +60,10 @@ def format_leaderboard(limit: int = 10) -> discord.Embed:
         previous_streak = None
 
         for idx, (username, current_streak, best_streak) in enumerate(leaderboard):
-            # If this person has the same streak as previous, use same rank
-            if previous_streak is not None and current_streak == previous_streak:
-                # Same rank as previous
-                pass  # current_rank stays the same
-            else:
-                # New rank - set it to current position (idx + 1)
-                current_rank = idx + 1
+            # If this person has a different streak than previous, increment rank
+            if previous_streak is not None and current_streak != previous_streak:
+                # New rank - increment by 1 for dense ranking
+                current_rank += 1
 
             # Determine medal or rank number
             if current_rank <= 3:
