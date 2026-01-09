@@ -183,6 +183,15 @@ async def on_message(message):
                 f"🏆 **MILESTONE!** {message.author.mention} has reached a "
                 f"**{streak} day streak!** Legendary! 🌟"
             )
+    else:
+        # No phrase matched
+        # If we're in a restricted GM channel, warn the user
+        if GM_CHANNEL_ID:
+            await message.add_reaction("👎")
+            await message.channel.send(
+                f"👎 {message.author.mention}, you can only say allowlisted GM phrases in this channel!\n"
+                f"Use `/gmlist` to see valid phrases."
+            )
 
     # Process commands
     await bot.process_commands(message)
