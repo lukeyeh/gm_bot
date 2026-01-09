@@ -52,12 +52,28 @@ def format_leaderboard(limit: int = 10) -> discord.Embed:
             inline=False
         )
     else:
-        # Create leaderboard text
+        # Create leaderboard text with proper tie handling
         medals = ["🥇", "🥈", "🥉"]
         leaderboard_text = []
 
+        current_rank = 1
+        previous_streak = None
+
         for idx, (username, current_streak, best_streak) in enumerate(leaderboard):
-            medal = medals[idx] if idx < 3 else f"**{idx + 1}.**"
+            # If this person has the same streak as previous, use same rank
+            if previous_streak is not None and current_streak == previous_streak:
+                # Same rank as previous
+                pass  # current_rank stays the same
+            else:
+                # New rank - set it to current position (idx + 1)
+                current_rank = idx + 1
+
+            # Determine medal or rank number
+            if current_rank <= 3:
+                medal = medals[current_rank - 1]
+            else:
+                medal = f"**{current_rank}.**"
+
             streak_text = f"{medal} **{username}**\n"
             streak_text += f"   Current: {current_streak} day{'s' if current_streak != 1 else ''}"
 
@@ -65,6 +81,7 @@ def format_leaderboard(limit: int = 10) -> discord.Embed:
                 streak_text += f" | Best: {best_streak}"
 
             leaderboard_text.append(streak_text)
+            previous_streak = current_streak
 
         embed.add_field(
             name="Current Standings",
