@@ -117,8 +117,8 @@ async def on_ready():
 @bot.event
 async def on_message(message):
     """Listen for GM messages"""
-    # Ignore messages from the bot itself
-    if message.author.bot:
+    # Ignore messages from this bot itself to prevent loops
+    if message.author.id == bot.user.id:
         return
 
     # Check if we should only listen in a specific channel
