@@ -185,13 +185,25 @@ async def on_message(message):
             )
     else:
         # No phrase matched
-        # If we're in a restricted GM channel, warn the user
+        # If we're in a restricted GM channel, warn the user and reset their streak
         if GM_CHANNEL_ID:
             await message.add_reaction("👎")
-            await message.channel.send(
-                f"👎 {message.author.mention}, you can only say allowlisted GM phrases in this channel!\n"
-                f"Use `/gmlist` to see valid phrases."
-            )
+
+            # Reset the user's streak as penalty
+            user_id = str(message.author.id)
+            lost_streak = data_manager.reset_user_streak(user_id)
+
+            if lost_streak > 0:
+                await message.channel.send(
+                    f"👎 {message.author.mention}, you can only say allowlisted GM phrases in this channel!\n"
+                    f"**Your {lost_streak} day streak has been reset to 0.** 💔\n"
+                    f"Use `/gmlist` to see valid phrases."
+                )
+            else:
+                await message.channel.send(
+                    f"👎 {message.author.mention}, you can only say allowlisted GM phrases in this channel!\n"
+                    f"Use `/gmlist` to see valid phrases."
+                )
 
     # Process commands
     await bot.process_commands(message)

@@ -110,6 +110,23 @@ class DataManager:
             return 0
         return self.data["users"][user_id]["current_streak"]
 
+    def reset_user_streak(self, user_id: str) -> int:
+        """
+        Reset a specific user's streak to 0 (penalty for rule violation)
+
+        Returns:
+            The streak that was lost (0 if user didn't exist)
+        """
+        user_id = str(user_id)
+        if user_id not in self.data["users"]:
+            return 0
+
+        lost_streak = self.data["users"][user_id]["current_streak"]
+        self.data["users"][user_id]["current_streak"] = 0
+        self.data["users"][user_id]["last_gm_date"] = None
+        self._save_data()
+        return lost_streak
+
     def get_leaderboard(self, limit: int = 10) -> List[Tuple[str, int, int]]:
         """
         Get top users by current streak
