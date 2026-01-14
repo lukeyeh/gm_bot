@@ -29,7 +29,6 @@ class DataManager:
         # Initialize new data structure
         return {
             "users": {},  # user_id -> {current_streak, last_gm_date, best_streak}
-            "monthly_reset_date": self._get_current_date().replace(day=1).isoformat(),
             "last_leaderboard_post": None,
             "gm_allowlist": [  # List of {phrase, time_range} objects
                 {"phrase": "gm", "time_range": "anytime"},
@@ -154,26 +153,6 @@ class DataManager:
         users.sort(key=lambda x: (x[1], x[2]), reverse=True)
         return users[:limit]
 
-    def reset_monthly_streaks(self):
-        """Reset all streaks for the new month"""
-        for user_data in self.data["users"].values():
-            user_data["current_streak"] = 0
-            user_data["last_gm_date"] = None
-            user_data["best_streak"] = 0
-            user_data["previous_streak"] = 0
-
-        self.data["monthly_reset_date"] = self._get_current_date().replace(day=1).isoformat()
-        self._save_data()
-
-    def should_reset_monthly(self) -> bool:
-        """Check if we should reset for a new month"""
-        last_reset = date.fromisoformat(self.data["monthly_reset_date"])
-        today = self._get_current_date()
-
-        # Check if we're in a new month
-        return (today.year > last_reset.year or
-                (today.year == last_reset.year and today.month > last_reset.month))
-
     def reset_all(self) -> int:
         """
         Reset ALL data - clears all users and their streaks completely.
@@ -184,7 +163,6 @@ class DataManager:
         """
         user_count = len(self.data["users"])
         self.data["users"] = {}
-        self.data["monthly_reset_date"] = self._get_current_date().replace(day=1).isoformat()
         self.data["last_leaderboard_post"] = None
         self._save_data()
         return user_count
