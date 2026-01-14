@@ -40,7 +40,7 @@ def format_leaderboard(limit: int = 10) -> discord.Embed:
 
     embed = discord.Embed(
         title="🌅 GM Streak Leaderboard",
-        description="Top GM warriors this month!",
+        description="Top GM warriors!",
         color=discord.Color.gold(),
         timestamp=datetime.now()
     )
@@ -87,7 +87,7 @@ def format_leaderboard(limit: int = 10) -> discord.Embed:
         )
 
     total_users = data_manager.get_total_users()
-    embed.set_footer(text=f"Total GM warriors: {total_users} | Resets monthly")
+    embed.set_footer(text=f"Total GM warriors: {total_users}")
 
     return embed
 
@@ -107,11 +107,6 @@ async def on_ready():
 
     # Start scheduled tasks
     start_scheduler()
-
-    # Check if monthly reset is needed
-    if data_manager.should_reset_monthly():
-        print("New month detected! Resetting streaks...")
-        data_manager.reset_monthly_streaks()
 
 
 @bot.event
@@ -240,7 +235,7 @@ async def streak_command(interaction: discord.Interaction):
         message = f"🔥 {interaction.user.mention}, your current streak is **{streak} day{'s' if streak != 1 else ''}**!"
 
         if best > streak:
-            message += f"\nYour best this month: **{best} days**"
+            message += f"\nYour best: **{best} days**"
 
         await interaction.response.send_message(message)
 
@@ -258,8 +253,7 @@ async def help_command(interaction: discord.Interaction):
         name="How it works",
         value=(
             "Say **GM** in the chat each day to maintain your streak!\n"
-            "Miss a day and your streak resets to 0.\n"
-            "Streaks reset at the start of each month."
+            "Miss a day and your streak resets to 0."
         ),
         inline=False
     )
@@ -405,7 +399,7 @@ async def post_weekly_leaderboard():
     embed = format_leaderboard(10)
 
     # Add a special header for the weekly post
-    embed.description = "🎯 **Weekly Leaderboard Update!** 🎯\n\nTop GM warriors this month!"
+    embed.description = "🎯 **Weekly Leaderboard Update!** 🎯\n\nTop GM warriors!"
 
     # If a specific channel is configured, post there
     if GM_CHANNEL_ID:
@@ -446,13 +440,6 @@ async def post_weekly_leaderboard():
         data_manager.mark_leaderboard_posted()
 
 
-def check_monthly_reset():
-    """Check and perform monthly reset if needed"""
-    if data_manager.should_reset_monthly():
-        print(f"Performing monthly reset at {datetime.now()}")
-        data_manager.reset_monthly_streaks()
-
-
 def start_scheduler():
     """Start the scheduled tasks"""
     scheduler = AsyncIOScheduler()
@@ -465,17 +452,9 @@ def start_scheduler():
         id='weekly_leaderboard'
     )
 
-    # Check for monthly reset daily at midnight
-    scheduler.add_job(
-        check_monthly_reset,
-        CronTrigger(hour=0, minute=1, timezone=tz),
-        id='monthly_reset_check'
-    )
-
     scheduler.start()
     print(f"Scheduler started with timezone: {TIMEZONE}")
     print(f"Weekly leaderboard will post every Monday at 9:00 AM {TIMEZONE}")
-    print(f"Monthly reset check runs daily at 12:01 AM {TIMEZONE}")
 
 
 if __name__ == '__main__':
