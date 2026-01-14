@@ -64,7 +64,8 @@ class DataManager:
                 "username": username,
                 "current_streak": 0,
                 "last_gm_date": None,
-                "best_streak": 0
+                "best_streak": 0,
+                "previous_streak": 0
             }
 
         user_data = self.data["users"][user_id]
@@ -90,15 +91,20 @@ class DataManager:
                 # Consecutive day
                 user_data["current_streak"] += 1
             else:
-                # Streak broken, start over
+                # Streak broken, save it as previous_streak before resetting
+                user_data["previous_streak"] = user_data["current_streak"]
                 user_data["current_streak"] = 1
 
         user_data["last_gm_date"] = today
 
-        # Check if this is a new personal best
-        is_new_record = user_data["current_streak"] > user_data["best_streak"]
-        if is_new_record:
+        # Update best_streak if this is a new personal best
+        if user_data["current_streak"] > user_data["best_streak"]:
             user_data["best_streak"] = user_data["current_streak"]
+
+        # Only announce new record the moment they beat their previous streak
+        # (not every day after that)
+        previous = user_data.get("previous_streak", 0)
+        is_new_record = user_data["current_streak"] == previous + 1 and previous > 0
 
         self._save_data()
         return user_data["current_streak"], is_new_record, False
@@ -122,6 +128,8 @@ class DataManager:
             return 0
 
         lost_streak = self.data["users"][user_id]["current_streak"]
+        # Save the lost streak as previous_streak before resetting
+        self.data["users"][user_id]["previous_streak"] = lost_streak
         self.data["users"][user_id]["current_streak"] = 0
         self.data["users"][user_id]["last_gm_date"] = None
         self._save_data()
@@ -152,6 +160,7 @@ class DataManager:
             user_data["current_streak"] = 0
             user_data["last_gm_date"] = None
             user_data["best_streak"] = 0
+            user_data["previous_streak"] = 0
 
         self.data["monthly_reset_date"] = self._get_current_date().replace(day=1).isoformat()
         self._save_data()
