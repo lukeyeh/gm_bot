@@ -34,6 +34,87 @@ os.makedirs(DATA_DIR, exist_ok=True)
 data_manager = DataManager(data_file=os.path.join(DATA_DIR, 'gm_data.json'), timezone=TIMEZONE)
 
 
+async def ensure_badge_roles(guild: discord.Guild) -> dict:
+    """
+    Ensure badge roles exist in the guild, creating any that are missing.
+    Returns a dict mapping badge threshold -> discord.Role.
+    """
+    existing_roles = {role.name: role for role in guild.roles}
+    badge_roles = {}
+
+    for threshold, emoji, name in STREAK_BADGES:
+        role_name = f"GM: {name}"
+        if role_name in existing_roles:
+            badge_roles[threshold] = existing_roles[role_name]
+        else:
+            try:
+                role = await guild.create_role(
+                    name=role_name,
+                    mentionable=False,
+                    hoist=False,
+                    reason=f"GM Bot badge role for {threshold}-day streak",
+                )
+                # Set the unicode emoji as role icon (requires Boost Level 2+)
+                try:
+                    await role.edit(display_icon=emoji)
+                except discord.HTTPException:
+                    # Guild may not have ROLE_ICONS feature (needs Boost Level 2)
+                    pass
+                badge_roles[threshold] = role
+                print(f"Created badge role: {role_name}")
+            except discord.Forbidden:
+                print(f"Missing permissions to create role: {role_name}")
+            except discord.HTTPException as e:
+                print(f"Failed to create role {role_name}: {e}")
+
+    return badge_roles
+
+
+async def update_badge_roles(member: discord.Member, streak: int):
+    """
+    Update a member's badge roles based on their current streak.
+    Assigns only the highest earned badge role and removes any lower ones.
+    """
+    guild = member.guild
+    badge_roles = await ensure_badge_roles(guild)
+
+    if not badge_roles:
+        return
+
+    # Determine the highest badge the user has earned
+    earned_threshold = None
+    for threshold, _, _ in reversed(STREAK_BADGES):
+        if streak >= threshold:
+            earned_threshold = threshold
+            break
+
+    # Collect all badge roles the member currently has, and determine changes
+    roles_to_remove = []
+    already_has_correct = False
+
+    for threshold, role in badge_roles.items():
+        if role in member.roles:
+            if threshold == earned_threshold:
+                already_has_correct = True
+            else:
+                roles_to_remove.append(role)
+
+    # Remove old badge roles
+    if roles_to_remove:
+        try:
+            await member.remove_roles(*roles_to_remove, reason="GM Bot: badge role update")
+        except discord.HTTPException as e:
+            print(f"Failed to remove badge roles from {member}: {e}")
+
+    # Add the new highest badge role
+    if earned_threshold is not None and not already_has_correct:
+        role_to_add = badge_roles[earned_threshold]
+        try:
+            await member.add_roles(role_to_add, reason="GM Bot: earned streak badge")
+        except discord.HTTPException as e:
+            print(f"Failed to add badge role to {member}: {e}")
+
+
 def format_leaderboard(limit: int = 10) -> discord.Embed:
     """Format leaderboard as a Discord embed"""
     leaderboard = data_manager.get_leaderboard(limit)
@@ -105,6 +186,11 @@ async def on_ready():
     except Exception as e:
         print(f'Failed to sync commands: {e}')
 
+    # Ensure badge roles exist in all guilds
+    for guild in bot.guilds:
+        await ensure_badge_roles(guild)
+        print(f"Badge roles ready in {guild.name}")
+
     # Start scheduled tasks
     start_scheduler()
 
@@ -150,6 +236,10 @@ async def on_message(message):
 
         # React to the message
         await message.add_reaction("🌅")
+
+        # Update badge roles for this user
+        if not already_counted and message.guild:
+            await update_badge_roles(message.author, streak)
 
         # Check if user just earned a new badge
         new_badge = data_manager.get_newly_earned_badge(user_id, streak)
@@ -241,18 +331,18 @@ async def streak_command(interaction: discord.Interaction):
         user_data = data_manager.data["users"].get(user_id, {})
         best = user_data.get("best_streak", 0)
 
-        msg = f"🔥 {interaction.user.mention}, your current streak is **{streak} day{'s' if streak != 1 else ''}**!"
+        message = f"🔥 {interaction.user.mention}, your current streak is **{streak} day{'s' if streak != 1 else ''}**!"
 
         if best > streak:
-            msg += f"\nYour best: **{best} days**"
+            message += f"\nYour best: **{best} days**"
 
-        # Show earned badges
+        # Show current badge role
         earned = data_manager.get_user_badges(user_id)
         if earned:
-            badge_display = " ".join(emoji for _, emoji, _ in earned)
-            msg += f"\nBadges: {badge_display}"
+            highest = earned[-1]
+            message += f"\nBadge: {highest[1]} **{highest[2]}**"
 
-        await interaction.response.send_message(msg)
+        await interaction.response.send_message(message)
 
 
 @bot.tree.command(name='badges', description='View your GM streak badges or see all available badges')
@@ -267,26 +357,36 @@ async def badges_command(interaction: discord.Interaction):
 
     embed = discord.Embed(
         title="🏅 GM Streak Badges",
-        description=f"Your best streak: **{best_streak} day{'s' if best_streak != 1 else ''}**",
+        description=f"Your best streak: **{best_streak} day{'s' if best_streak != 1 else ''}**\n"
+                    f"Earn badges as role icons that show next to your name!",
         color=discord.Color.purple()
     )
 
     badge_lines = []
     for threshold, emoji, name in STREAK_BADGES:
+        role_name = f"GM: {name}"
         if threshold in earned_thresholds:
             badge_lines.append(f"{emoji} **{name}** — {threshold} days ✅")
         else:
             badge_lines.append(f"🔒 ~~{name}~~ — {threshold} days")
 
     embed.add_field(
-        name="Badges",
+        name="Badges (Role Icons)",
         value="\n".join(badge_lines),
         inline=False
     )
 
+    if earned:
+        highest = earned[-1]
+        embed.add_field(
+            name="Your Active Badge",
+            value=f"{highest[1]} **GM: {highest[2]}** (shown next to your name)",
+            inline=False
+        )
+
     earned_count = len(earned)
     total_count = len(STREAK_BADGES)
-    embed.set_footer(text=f"Earned: {earned_count}/{total_count} badges")
+    embed.set_footer(text=f"Earned: {earned_count}/{total_count} badges | Requires Server Boost Level 2 for role icons")
 
     await interaction.response.send_message(embed=embed)
 
