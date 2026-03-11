@@ -7,6 +7,22 @@ import pytz
 from datetime import datetime, date
 from typing import Dict, List, Tuple
 
+# Badge definitions: (threshold, emoji, name)
+# Ordered by threshold ascending - users earn all badges up to their best streak
+STREAK_BADGES = [
+    (3,   "🌱", "Sprout"),
+    (7,   "🔥", "Week Warrior"),
+    (14,  "⭐", "Fortnight Star"),
+    (21,  "🌟", "Triple Week"),
+    (30,  "💎", "Monthly Legend"),
+    (50,  "👑", "Half Century"),
+    (75,  "🏅", "Diamond Dedication"),
+    (100, "🏆", "Centurion"),
+    (150, "🐉", "Dragon"),
+    (200, "🌈", "Mythical"),
+    (365, "☀️", "Year-Round Sun"),
+]
+
 
 class DataManager:
     def __init__(self, data_file: str = "gm_data.json", timezone: str = None):
@@ -318,3 +334,29 @@ class DataManager:
                 return current_hour >= start or current_hour < end
         except (ValueError, AttributeError):
             return True  # If invalid range, allow it
+
+    def get_user_badges(self, user_id: str) -> List[Tuple[int, str, str]]:
+        """
+        Get all badges earned by a user based on their best streak.
+
+        Returns:
+            List of (threshold, emoji, name) tuples for earned badges
+        """
+        user_id = str(user_id)
+        if user_id not in self.data["users"]:
+            return []
+
+        best_streak = self.data["users"][user_id].get("best_streak", 0)
+        return [(t, e, n) for t, e, n in STREAK_BADGES if best_streak >= t]
+
+    def get_newly_earned_badge(self, user_id: str, streak: int) -> Tuple[str, str] | None:
+        """
+        Check if the user just earned a new badge at exactly this streak count.
+
+        Returns:
+            (emoji, name) if a badge was just earned, None otherwise
+        """
+        for threshold, emoji, name in STREAK_BADGES:
+            if streak == threshold:
+                return (emoji, name)
+        return None

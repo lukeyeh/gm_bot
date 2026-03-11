@@ -11,7 +11,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 import pytz
 
-from data_manager import DataManager
+from data_manager import DataManager, STREAK_BADGES
 
 
 # Load environment variables
@@ -151,6 +151,9 @@ async def on_message(message):
         # React to the message
         await message.add_reaction("🌅")
 
+        # Check if user just earned a new badge
+        new_badge = data_manager.get_newly_earned_badge(user_id, streak)
+
         # Send appropriate message based on situation
         if already_counted:
             # User already said GM today
@@ -158,6 +161,12 @@ async def on_message(message):
                 f"☀️ {message.author.mention}, you already said GM today! "
                 f"Your current streak is **{streak} day{'s' if streak != 1 else ''}**. "
                 f"Come back tomorrow to keep it going!"
+            )
+        elif new_badge:
+            emoji, badge_name = new_badge
+            await message.channel.send(
+                f"{emoji} **NEW BADGE UNLOCKED!** {message.author.mention} earned the "
+                f"**{badge_name}** badge with a **{streak} day streak!** {emoji}"
             )
         elif is_new_record and streak > 1:
             await message.channel.send(
@@ -232,12 +241,54 @@ async def streak_command(interaction: discord.Interaction):
         user_data = data_manager.data["users"].get(user_id, {})
         best = user_data.get("best_streak", 0)
 
-        message = f"🔥 {interaction.user.mention}, your current streak is **{streak} day{'s' if streak != 1 else ''}**!"
+        msg = f"🔥 {interaction.user.mention}, your current streak is **{streak} day{'s' if streak != 1 else ''}**!"
 
         if best > streak:
-            message += f"\nYour best: **{best} days**"
+            msg += f"\nYour best: **{best} days**"
 
-        await interaction.response.send_message(message)
+        # Show earned badges
+        earned = data_manager.get_user_badges(user_id)
+        if earned:
+            badge_display = " ".join(emoji for _, emoji, _ in earned)
+            msg += f"\nBadges: {badge_display}"
+
+        await interaction.response.send_message(msg)
+
+
+@bot.tree.command(name='badges', description='View your GM streak badges or see all available badges')
+async def badges_command(interaction: discord.Interaction):
+    """Show badges earned and available"""
+    user_id = str(interaction.user.id)
+    earned = data_manager.get_user_badges(user_id)
+    earned_thresholds = {t for t, _, _ in earned}
+
+    user_data = data_manager.data["users"].get(user_id, {})
+    best_streak = user_data.get("best_streak", 0)
+
+    embed = discord.Embed(
+        title="🏅 GM Streak Badges",
+        description=f"Your best streak: **{best_streak} day{'s' if best_streak != 1 else ''}**",
+        color=discord.Color.purple()
+    )
+
+    badge_lines = []
+    for threshold, emoji, name in STREAK_BADGES:
+        if threshold in earned_thresholds:
+            badge_lines.append(f"{emoji} **{name}** — {threshold} days ✅")
+        else:
+            badge_lines.append(f"🔒 ~~{name}~~ — {threshold} days")
+
+    embed.add_field(
+        name="Badges",
+        value="\n".join(badge_lines),
+        inline=False
+    )
+
+    earned_count = len(earned)
+    total_count = len(STREAK_BADGES)
+    embed.set_footer(text=f"Earned: {earned_count}/{total_count} badges")
+
+    await interaction.response.send_message(embed=embed)
 
 
 @bot.tree.command(name='gmhelp', description='Show bot help and information')
@@ -263,6 +314,7 @@ async def help_command(interaction: discord.Interaction):
         value=(
             "`/leaderboard` - Show the top GM warriors\n"
             "`/streak` - Check your current streak\n"
+            "`/badges` - View your streak badges\n"
             "`/gmlist` - Show what phrases count as GM\n"
             "`/gmadd <phrase>` - Add a phrase to allowlist (admin only)\n"
             "`/gmremove <phrase>` - Remove a phrase from allowlist (admin only)\n"
