@@ -188,7 +188,24 @@ async def on_ready():
 
     # Ensure badge roles exist in all guilds
     for guild in bot.guilds:
+        bot_member = guild.me
+        perms = bot_member.guild_permissions
+
+        if not perms.manage_roles:
+            print(f"WARNING [{guild.name}]: Bot is missing 'Manage Roles' permission. "
+                  f"Badge roles will not work. Please update the bot's role permissions.")
+            continue
+
         await ensure_badge_roles(guild)
+
+        # Check role hierarchy - warn if any badge roles are above the bot's top role
+        bot_top_role = bot_member.top_role
+        for role in guild.roles:
+            if role.name.startswith("GM: ") and role.position >= bot_top_role.position:
+                print(f"WARNING [{guild.name}]: Badge role '{role.name}' is at or above the "
+                      f"bot's highest role '{bot_top_role.name}'. Move the bot's role higher "
+                      f"in Server Settings > Roles, or the bot won't be able to assign it.")
+
         print(f"Badge roles ready in {guild.name}")
 
     # Start scheduled tasks
