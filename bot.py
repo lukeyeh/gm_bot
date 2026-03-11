@@ -34,14 +34,6 @@ os.makedirs(DATA_DIR, exist_ok=True)
 data_manager = DataManager(data_file=os.path.join(DATA_DIR, 'gm_data.json'), timezone=TIMEZONE)
 
 
-def get_badge_suffix(user_id: str) -> str:
-    """Get a badge emoji string for a user, e.g. ' 🌱🔥⭐'. Empty if no badges."""
-    earned = data_manager.get_user_badges(user_id)
-    if not earned:
-        return ""
-    return " " + "".join(emoji for _, emoji, _ in earned)
-
-
 def format_leaderboard(limit: int = 10) -> discord.Embed:
     """Format leaderboard as a Discord embed"""
     leaderboard = data_manager.get_leaderboard(limit)
@@ -67,7 +59,7 @@ def format_leaderboard(limit: int = 10) -> discord.Embed:
         current_rank = 1
         previous_streak = None
 
-        for idx, (username, current_streak, best_streak, uid) in enumerate(leaderboard):
+        for idx, (username, current_streak, best_streak) in enumerate(leaderboard):
             # If this person has a different streak than previous, increment rank
             if previous_streak is not None and current_streak != previous_streak:
                 # New rank - increment by 1 for dense ranking
@@ -79,8 +71,7 @@ def format_leaderboard(limit: int = 10) -> discord.Embed:
             else:
                 medal = f"**{current_rank}.**"
 
-            badge_str = get_badge_suffix(uid)
-            streak_text = f"{medal} **{username}**{badge_str}\n"
+            streak_text = f"{medal} **{username}**\n"
             streak_text += f"   Current: {current_streak} day{'s' if current_streak != 1 else ''}"
 
             if best_streak > current_streak:
@@ -162,58 +153,40 @@ async def on_message(message):
 
         # Check if user just earned a new badge
         new_badge = data_manager.get_newly_earned_badge(user_id, streak)
-        badge_str = get_badge_suffix(user_id)
-
-        # Build embed for GM response with avatar + badges next to name
-        gm_embed = discord.Embed()
-        gm_embed.set_author(
-            name=f"{message.author.display_name}{badge_str}",
-            icon_url=message.author.display_avatar.url
-        )
 
         # Send appropriate message based on situation
         if already_counted:
-            gm_embed.color = discord.Color.yellow()
-            gm_embed.description = (
+            # User already said GM today
+            await message.channel.send(
                 f"☀️ {message.author.mention}, you already said GM today! "
                 f"Your current streak is **{streak} day{'s' if streak != 1 else ''}**. "
                 f"Come back tomorrow to keep it going!"
             )
         elif new_badge:
             emoji, badge_name = new_badge
-            gm_embed.color = discord.Color.purple()
-            gm_embed.description = (
+            await message.channel.send(
                 f"{emoji} **NEW BADGE UNLOCKED!** {message.author.mention} earned the "
                 f"**{badge_name}** badge with a **{streak} day streak!** {emoji}"
             )
         elif is_new_record and streak > 1:
-            gm_embed.color = discord.Color.red()
-            gm_embed.description = (
+            await message.channel.send(
                 f"🔥 **New personal record!** {message.author.mention} is on a "
                 f"**{streak} day streak!** Keep it up! 🚀"
             )
         elif streak == 1:
-            gm_embed.color = discord.Color.green()
-            gm_embed.description = (
+            await message.channel.send(
                 f"Good morning {message.author.mention}! Your streak has started! ☀️"
             )
         elif streak % 7 == 0:  # Weekly milestone
-            gm_embed.color = discord.Color.blue()
-            gm_embed.description = (
+            await message.channel.send(
                 f"🎉 **{streak} days!** {message.author.mention} has been saying GM for "
                 f"{streak // 7} week{'s' if streak // 7 != 1 else ''}! Amazing dedication! 💪"
             )
         elif streak in [10, 25, 50, 100]:  # Special milestones
-            gm_embed.color = discord.Color.gold()
-            gm_embed.description = (
+            await message.channel.send(
                 f"🏆 **MILESTONE!** {message.author.mention} has reached a "
                 f"**{streak} day streak!** Legendary! 🌟"
             )
-        else:
-            gm_embed = None  # No special message needed
-
-        if gm_embed:
-            await message.channel.send(embed=gm_embed)
     else:
         # No phrase matched
         # If we're in a restricted GM channel, warn the user and reset their streak
@@ -267,23 +240,19 @@ async def streak_command(interaction: discord.Interaction):
     else:
         user_data = data_manager.data["users"].get(user_id, {})
         best = user_data.get("best_streak", 0)
-        badge_str = get_badge_suffix(user_id)
 
-        embed = discord.Embed(
-            color=discord.Color.orange()
-        )
-        embed.set_author(
-            name=f"{interaction.user.display_name}{badge_str}",
-            icon_url=interaction.user.display_avatar.url
-        )
+        msg = f"🔥 {interaction.user.mention}, your current streak is **{streak} day{'s' if streak != 1 else ''}**!"
 
-        streak_text = f"Current streak: **{streak} day{'s' if streak != 1 else ''}**"
         if best > streak:
-            streak_text += f"\nBest streak: **{best} days**"
+            msg += f"\nYour best: **{best} days**"
 
-        embed.add_field(name="🔥 GM Streak", value=streak_text, inline=False)
+        # Show earned badges
+        earned = data_manager.get_user_badges(user_id)
+        if earned:
+            badge_display = " ".join(emoji for _, emoji, _ in earned)
+            msg += f"\nBadges: {badge_display}"
 
-        await interaction.response.send_message(embed=embed)
+        await interaction.response.send_message(msg)
 
 
 @bot.tree.command(name='badges', description='View your GM streak badges or see all available badges')
@@ -296,16 +265,10 @@ async def badges_command(interaction: discord.Interaction):
     user_data = data_manager.data["users"].get(user_id, {})
     best_streak = user_data.get("best_streak", 0)
 
-    badge_str = get_badge_suffix(user_id)
-
     embed = discord.Embed(
         title="🏅 GM Streak Badges",
         description=f"Your best streak: **{best_streak} day{'s' if best_streak != 1 else ''}**",
         color=discord.Color.purple()
-    )
-    embed.set_author(
-        name=f"{interaction.user.display_name}{badge_str}",
-        icon_url=interaction.user.display_avatar.url
     )
 
     badge_lines = []
