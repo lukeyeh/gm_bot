@@ -150,19 +150,20 @@ class DataManager:
         self._save_data()
         return lost_streak
 
-    def get_leaderboard(self, limit: int = 10) -> List[Tuple[str, int, int]]:
+    def get_leaderboard(self, limit: int = 10) -> List[Tuple[str, int, int, str]]:
         """
         Get top users by current streak
 
         Returns:
-            List of tuples (username, current_streak, best_streak)
+            List of tuples (username, current_streak, best_streak, user_id)
         """
         users = []
         for user_id, user_data in self.data["users"].items():
             users.append((
                 user_data["username"],
                 user_data["current_streak"],
-                user_data["best_streak"]
+                user_data["best_streak"],
+                user_id
             ))
 
         # Sort by current streak (descending), then by best streak
